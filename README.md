@@ -320,6 +320,29 @@ The following plots compare the SPICE reference values with the predictions prod
 #### Average Power
 
 ![Average power actual vs predicted](results/figures/avg_power_w_actual_vs_predicted.png)
+## Feature Importance
+
+Feature-importance analysis was performed to understand which circuit parameters contributed most strongly to the predictions of the Gradient Boosting models. These values represent model-based importance within the explored design space and should not be interpreted as direct proof of physical causality.
+
+### tpdhl
+
+![tpdhl feature importance](results/figures/tpdhl_feature_importance.png)
+
+### tpdlh
+
+![tpdlh feature importance](results/figures/tpdlh_feature_importance.png)
+
+### trise
+
+![trise feature importance](results/figures/trise_feature_importance.png)
+
+### tfall
+
+![tfall feature importance](results/figures/tfall_feature_importance.png)
+
+### Average Power
+
+![Average power feature importance](results/figures/avg_power_w_feature_importance.png)
 The model achieves R2 values between approximately **0.9890 and 0.9976** across the five prediction targets.
 
 The highest R2 is obtained for average power:
