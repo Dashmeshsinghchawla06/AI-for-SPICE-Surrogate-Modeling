@@ -5,45 +5,55 @@
 </p>
 
 <p align="center">
-  <em>A machine-learning approach to accelerating repeated CMOS circuit evaluation.</em>
+  <em>Learning from SPICE simulations to make repeated CMOS circuit evaluation faster.</em>
 </p>
 
 ---
 
-## Research Overview
+## Project Overview
 
-**Author:** Dashmesh Singh Chawla  
-**Program:** Electronics Engineering — VLSI Design  
-**Institution:** Thapar Institute of Engineering and Technology
+SPICE is widely used to evaluate circuit behaviour, but repeatedly simulating many combinations of circuit parameters can become expensive. This project explores whether a machine-learning model can learn from SPICE-generated data and provide a fast approximation for repeated design-space evaluations.
 
-### Research Question
+The current study uses a **three-stage CMOS inverter chain** and real `ngspice` transient simulations. A Gradient Boosting surrogate is trained to predict five SPICE-derived performance metrics.
 
-Can a machine-learning model trained on SPICE-generated data accurately predict the performance of a parameterized CMOS circuit while being substantially faster to evaluate than a new SPICE simulation?
-
-This work presents an initial baseline study using a **three-stage CMOS inverter chain**. Real `ngspice` simulations are used to generate the dataset, and a Gradient Boosting model is trained to predict five circuit-level performance metrics.
-
-### Current Results
+### Results at a Glance
 
 | Metric | Result |
 |---|---:|
-| SPICE simulations | **1500** |
+| SPICE simulations | **1,500** |
 | Input parameters | **5** |
-| Predicted quantities | **5** |
-| Best R² | **0.997590** |
-| Lowest R² | **0.988988** |
+| Predicted metrics | **5** |
+| Best R² | **0.9976** |
+| Lowest R² | **0.9890** |
 | ML inference time | **46.7 μs/sample** |
 | SPICE reference time | **~24 ms/sample** |
 | Evaluation-time ratio | **~514×** |
 
-> **Current status:** The SPICE-to-ML baseline is complete. The next stage will focus on error analysis, model comparison, dataset scaling, generalization, and waveform-level prediction.
+> **Current status:** The initial SPICE-to-ML baseline is complete. The next stage focuses on understanding model error, scaling the dataset, testing other models and circuit topologies, and eventually predicting complete transient waveforms.
 
 ---
 
-# 1. Circuit Under Study
+# 1. Research Question
 
-The circuit used in the current experiment is a three-stage CMOS inverter chain driven by a transient pulse and connected to a capacitive output load.
+> **Can a machine-learning model trained on SPICE-generated data accurately predict the performance of a parameterized CMOS circuit while being substantially faster to evaluate than a new SPICE simulation?**
 
-Five parameters are varied during dataset generation:
+The current model predicts:
+
+- `tpdhl` — high-to-low propagation delay
+- `tpdlh` — low-to-high propagation delay
+- `trise` — rise time
+- `tfall` — fall time
+- `avg_power_w` — average power
+
+The longer-term goal is to investigate whether this approach can be extended from scalar metrics to complete transient waveform prediction.
+
+---
+
+# 2. Circuit and Parameter Space
+
+The circuit is a **three-stage CMOS inverter chain** driven by a transient pulse and connected to a capacitive output load.
+
+The five parameters varied during dataset generation are:
 
 | Parameter | Range | Description |
 |---|---:|---|
@@ -53,23 +63,23 @@ Five parameters are varied during dataset generation:
 | `CL` | 10–200 fF | Output load capacitance |
 | `VTO_SHIFT` | −0.05–0.05 V | Threshold-voltage shift |
 
-The channel length is held fixed. The current implementation uses generic MOSFET models rather than a foundry-specific PDK, so the purpose of the experiment is to study the surrogate-modeling methodology rather than make process-specific device predictions.
+The channel length is held fixed. The current implementation uses generic MOSFET models rather than a foundry-specific PDK, so the results demonstrate the surrogate-modeling methodology rather than process-specific device behaviour.
 
 ### Circuit Schematic
 
 ![Parameterized three-stage CMOS inverter chain](results/figures/circuit_schematic.png)
 
-### Representative SPICE Transient Response
+### Representative SPICE Response
 
-A representative transient simulation was used to establish the SPICE response against which the surrogate is evaluated. The transient analysis covers 20 ns with a maximum timestep of 10 ps.
+A representative transient simulation is shown below. The transient analysis covers 20 ns with a maximum timestep of 10 ps.
 
 ![SPICE transient response](results/figures/example_spice_waveform.png)
 
 ---
 
-# 2. Methodology
+# 3. Methodology
 
-The workflow used in this study is intentionally straightforward:
+The project follows a simple simulation-to-surrogate workflow:
 
 ```text
 Circuit Parameters
@@ -87,39 +97,48 @@ Gradient Boosting Surrogate
 Held-Out Test Evaluation
 ```
 
-The five input features are:
+The five circuit parameters form the model inputs, while the five SPICE-derived metrics form the prediction targets.
 
-`WN`, `WP`, `VDD`, `CL`, and `VTO_SHIFT`.
+The dataset contains **1,500 successful simulations**. For `tpdhl` and `tpdlh`, two samples contain non-positive values and are excluded from the corresponding log-space regression because `log(y)` is undefined for non-positive values.
 
-The five predicted quantities are:
+The baseline uses an 80/20 train-test split and a Gradient Boosting Regressor with:
 
-`tpdhl`, `tpdlh`, `trise`, `tfall`, and `avg_power_w`.
+- 200 estimators
+- maximum depth of 3
+- learning rate of 0.1
+- random state of 0
 
-The dataset contains **1500 successful simulations**. Two samples contain non-positive values for each propagation-delay target and are therefore excluded from the corresponding log-space regression, since `log(y)` is undefined for non-positive values.
-
-The baseline uses an 80/20 train-test split and a Gradient Boosting Regressor with 200 estimators, maximum depth 3, learning rate 0.1, and random state 0.
+The input features are standardized using `StandardScaler`.
 
 ---
 
-# 3. Log-Space Modeling
+# 4. Key Modeling Observation — Log-Space Regression
 
-One of the useful observations from the baseline experiment was the effect of modeling the timing quantities in logarithmic space.
+One of the useful findings from the baseline experiment was the effect of representing the timing targets in logarithmic space.
 
-The timing targets are modeled as:
+Instead of directly fitting:
+
+```text
+y = timing
+```
+
+the timing targets are modeled as:
 
 ```text
 y_log = log(y)
 ```
 
-and converted back to their original units for RMSE and MAE calculation.
+and transformed back to their original units for RMSE and MAE evaluation.
 
-Direct modeling in raw seconds performed substantially worse in the preliminary comparison, while log-space modeling produced a much stronger regression relationship on the current dataset.
+The preliminary raw-space comparison performed substantially worse for the timing targets, while log-space modeling produced a much stronger regression relationship on the current dataset.
 
-This is an important result for the project because the timing quantities span a relatively wide numerical range and are strongly nonlinear with respect to the circuit parameters.
+This is a useful observation for the project because the timing quantities vary over a relatively wide numerical range and their relationship with circuit parameters is nonlinear.
+
+> **Important:** This finding is specific to the current circuit and dataset. It is being treated as an experimentally observed modeling choice, not as a universal rule for SPICE surrogate modeling.
 
 ---
 
-# 4. Results
+# 5. Baseline Results
 
 The Gradient Boosting baseline was evaluated on a held-out test set.
 
@@ -135,61 +154,63 @@ The model achieved R² values between **0.988988 and 0.997590** across all five 
 
 These results indicate that the model captures the relationship between the sampled circuit parameters and the SPICE-derived scalar metrics well within the investigated design space.
 
-## SPICE vs. ML Predictions
+## SPICE vs. Machine-Learning Predictions
 
-The following plots compare SPICE reference values with predictions from the trained Gradient Boosting models.
-
-### Propagation Delay — tpdhl
+### `tpdhl` — Propagation Delay
 
 ![tpdhl actual vs predicted](results/figures/tpdhl_actual_vs_predicted.png)
 
-### Propagation Delay — tpdlh
+### `tpdlh` — Propagation Delay
 
 ![tpdlh actual vs predicted](results/figures/tpdlh_actual_vs_predicted.png)
 
-### Rise Time — trise
+### `trise` — Rise Time
 
 ![trise actual vs predicted](results/figures/trise_actual_vs_predicted.png)
 
-### Fall Time — tfall
+### `tfall` — Fall Time
 
 ![tfall actual vs predicted](results/figures/tfall_actual_vs_predicted.png)
 
-### Average Power
+### `avg_power_w` — Average Power
 
 ![Average power actual vs predicted](results/figures/avg_power_w_actual_vs_predicted.png)
 
 ---
 
-# 5. Feature Importance
+# 6. Feature Importance
 
-Feature importance was examined to understand which of the five input parameters contributed most strongly to each trained model.
+Feature-importance analysis was used to understand which input parameters contributed most strongly to each Gradient Boosting model.
 
-These values describe the behavior of the machine-learning model within the sampled dataset; they should not be interpreted as direct proof of physical causality.
+The five features are:
 
-### tpdhl
+`WN`, `WP`, `VDD`, `CL`, and `VTO_SHIFT`.
+
+These values represent model-based importance within the explored dataset and should not be interpreted as direct proof of physical causality.
+
+### `tpdhl`
 
 ![tpdhl feature importance](results/figures/tpdhl_feature_importance.png)
 
-### tpdlh
+### `tpdlh`
 
 ![tpdlh feature importance](results/figures/tpdlh_feature_importance.png)
 
-### trise
+### `trise`
 
 ![trise feature importance](results/figures/trise_feature_importance.png)
 
-### tfall
+### `tfall`
 
 ![tfall feature importance](results/figures/tfall_feature_importance.png)
 
-### Average Power
+### `avg_power_w`
 
 ![Average power feature importance](results/figures/avg_power_w_feature_importance.png)
 
 ---
 
-# 6. Inference Speed
+# 7. Inference Speed
 
 The measured inference time for predicting all five quantities was approximately:
 
@@ -199,58 +220,58 @@ The corresponding SPICE reference time was approximately:
 
 **24 ms per simulation**
 
-This gives:
+Therefore:
 
 ```text
 24 ms / 46.7 μs ≈ 514
 ```
 
-or approximately a **514× evaluation-time ratio** for the current benchmark.
+This gives an evaluation-time ratio of approximately **514×** for the current benchmark.
 
-This number should be interpreted as the cost of evaluating an already-trained surrogate versus running a new SPICE simulation. It does not include the cost of generating the original SPICE dataset or training the machine-learning model.
+This should not be interpreted as a 514× end-to-end project speedup. The comparison is between an **already-trained surrogate** and one new SPICE evaluation. The cost of generating the original training dataset and training the model is not included.
 
 ---
 
-# 7. Limitations and Next Steps
+# 8. Limitations and Next Research Steps
 
-The current experiment is a baseline rather than a complete SPICE replacement.
+The current work is a baseline study rather than a complete replacement for SPICE.
 
-### Limitations
+### Current limitations
 
 - Only one circuit topology has been studied.
-- The MOSFET models are generic rather than from a foundry PDK.
+- Generic MOSFET models are used instead of a foundry PDK.
 - Channel length is held fixed.
-- The current dataset contains 1500 simulations.
-- The baseline predicts scalar metrics rather than the complete transient waveform.
+- The current dataset contains 1,500 simulations.
+- The model predicts five scalar quantities rather than the complete transient waveform.
 - Generalization outside the sampled design space has not yet been established.
 
-### Next Research Steps
+### Next steps
 
-**1. Error analysis**  
+**1. Rigorous error analysis**  
 Investigate maximum-error samples, error distributions, relative error, and controlled SPICE-versus-ML timing measurements.
 
 **2. Model comparison**  
 Compare Gradient Boosting with Random Forest, XGBoost, and other suitable regression approaches.
 
 **3. Dataset scaling**  
-Evaluate model performance as the dataset grows from approximately 500 to 5000 simulations.
+Evaluate performance as the dataset grows from approximately 500 to 5,000 simulations.
 
 **4. Generalization**  
-Test unseen parameter combinations, particularly near design-space boundaries and nonlinear regions.
+Test previously unseen parameter combinations, especially near design-space boundaries and nonlinear regions.
 
-**5. Additional circuits**  
-Evaluate whether the approach transfers to another circuit topology.
+**5. Additional circuit topology**  
+Evaluate whether the approach transfers beyond the three-stage inverter chain.
 
 **6. Waveform-level surrogate**  
-Move beyond five scalar outputs and predict the complete transient `v(out,t)` waveform.
+Move from predicting five scalar metrics to predicting the complete transient `v(out,t)` waveform.
 
-The waveform-level model is the longer-term goal because it would provide a closer approximation to the actual transient behavior produced by SPICE.
+The waveform-level model is the longer-term goal because it would provide a closer surrogate for the actual transient behaviour produced by SPICE.
 
 ---
 
-# 8. Reproducibility
+# 9. Reproducibility
 
-Install the Python dependencies:
+Install the required Python packages:
 
 ```bash
 pip install numpy pandas scipy scikit-learn
@@ -258,19 +279,19 @@ pip install numpy pandas scipy scikit-learn
 
 Install `ngspice` separately.
 
-Generate the dataset:
+### Generate the dataset
 
 ```bash
 python3 code/generate_dataset.py --n-samples 1500
 ```
 
-Train the baseline:
+### Train the baseline
 
 ```bash
 python3 code/train_baseline_model.py
 ```
 
-Main result files:
+### Main outputs
 
 ```text
 data/dataset.csv
@@ -281,17 +302,17 @@ results/figures/
 
 ---
 
-# 9. Conclusion
+# 10. Conclusion
 
-This study establishes a working baseline for AI-based surrogate modeling of SPICE simulations.
+This project establishes a working baseline for AI-based surrogate modeling of SPICE simulations.
 
-Using 1500 successful `ngspice` simulations of a parameterized three-stage CMOS inverter chain, a Gradient Boosting model was trained to predict propagation delay, rise time, fall time, and average power.
+Using **1,500 successful `ngspice` simulations** of a parameterized three-stage CMOS inverter chain, a Gradient Boosting model was trained to predict propagation delay, rise time, fall time, and average power.
 
 The baseline achieved R² values from **0.988988 to 0.997590**. The trained surrogate required approximately **46.7 μs per sample** to predict all five quantities, compared with an approximately **24 ms** SPICE reference evaluation.
 
-The results suggest that machine-learning surrogates can reproduce important SPICE-derived scalar metrics with high accuracy within the current design space while providing much faster evaluation.
+The results suggest that a machine-learning surrogate can reproduce important SPICE-derived scalar metrics with high accuracy within the current design space while providing substantially faster evaluation.
 
-The main question for the next stage is whether this behavior remains reliable with more training data, different circuit topologies, and eventually complete transient waveform prediction.
+The main research question for the next stage is whether this performance remains reliable with more training data, different circuit topologies, and ultimately complete transient waveform prediction.
 
 ---
 
