@@ -46,7 +46,11 @@ The circuit is parameterized using five primary input variables:
 The threshold-voltage shift is used to introduce variation in the operating conditions explored by the simulations.
 
 The current implementation uses generic MOSFET models rather than a foundry-specific PDK.
+### Circuit Schematic
 
+The circuit investigated in this study is a parameterized three-stage CMOS inverter chain with a capacitive load at the output. The five design variables are swept across the defined parameter space using Latin-Hypercube sampling, and transient SPICE simulations are used to generate the reference dataset.
+
+![Parameterized three-stage CMOS inverter chain](results/figures/circuit_schematic.png)
 
 ## Example SPICE Transient Response
 
