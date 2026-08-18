@@ -297,7 +297,29 @@ The latest Gradient Boosting baseline was evaluated on a held-out test set.
 | trise | 0.994086 | 7.800899e-11 | 3.582475e-11 | 13.23% |
 | tfall | 0.992201 | 5.854914e-11 | 3.122635e-11 | 10.87% |
 | avg_power_w | 0.997590 | 6.885861e-07 | 4.975517e-07 | 3.41% |
+### SPICE vs. Machine-Learning Predictions
 
+The following plots compare the SPICE reference values with the predictions produced by the Gradient Boosting surrogate on the held-out test set.
+
+#### Propagation Delay — tpdhl
+
+![tpdhl actual vs predicted](results/figures/tpdhl_actual_vs_predicted.png)
+
+#### Propagation Delay — tpdlh
+
+![tpdlh actual vs predicted](results/figures/tpdlh_actual_vs_predicted.png)
+
+#### Rise Time — trise
+
+![trise actual vs predicted](results/figures/trise_actual_vs_predicted.png)
+
+#### Fall Time — tfall
+
+![tfall actual vs predicted](results/figures/tfall_actual_vs_predicted.png)
+
+#### Average Power
+
+![Average power actual vs predicted](results/figures/avg_power_w_actual_vs_predicted.png)
 The model achieves R2 values between approximately **0.9890 and 0.9976** across the five prediction targets.
 
 The highest R2 is obtained for average power:
