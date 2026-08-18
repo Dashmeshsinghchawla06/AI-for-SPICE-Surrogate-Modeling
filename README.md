@@ -47,6 +47,19 @@ The threshold-voltage shift is used to introduce variation in the operating cond
 
 The current implementation uses generic MOSFET models rather than a foundry-specific PDK.
 
+
+## Example SPICE Transient Response
+
+To establish the SPICE simulation as the reference or ground-truth response, a representative transient simulation was performed on the three-stage CMOS inverter chain.
+
+The example simulation uses a 1.2 V supply, representative transistor dimensions, a fixed channel length, and a 50 fF output load. The transient analysis was performed over 20 ns with a maximum timestep of 10 ps.
+
+![SPICE transient response](results/figures/example_spice_waveform.png)
+
+The plot shows the applied input pulse and the corresponding output response of the three-stage inverter chain. The output waveform demonstrates the expected inversion behavior and finite transition time associated with the CMOS circuit.
+
+These SPICE-generated transient responses form the reference data from which the machine-learning surrogate model is trained and evaluated.
+
 ---
 
 ## 3. Overall Methodology
